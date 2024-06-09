@@ -47,7 +47,7 @@ diabetes_dataset[['diag_1', 'diag_2', 'diag_3']] = diabetes_dataset[['diag_1', '
 diabetes_dataset = diabetes_dataset.sort_values(by='patient_nbr')
 
 
-def load_data():
+'''def load_data():
     def split_feature_label(data_set):
         features = data_set[:-2]
         labels = data_set['']
@@ -66,4 +66,6 @@ def load_data():
 
 # Load the data with the function above
 (train_features, train_labels, dev_features, \
-        dev_labels, test_features, test_labels) = load_data()
+        dev_labels, test_features, test_labels) = load_data()'''
+
+print(diabetes_dataset.columns)
