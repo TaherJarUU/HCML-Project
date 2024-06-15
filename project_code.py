@@ -44,13 +44,56 @@ diabetes_dataset['diag_3'] = diabetes_dataset['diag_3'].apply(replace_multiple_r
 
 # Replace '?' with 'no record' across multiple columns
 diabetes_dataset[['diag_1', 'diag_2', 'diag_3']] = diabetes_dataset[['diag_1', 'diag_2', 'diag_3']].replace('?', 'no record')
-diabetes_dataset = diabetes_dataset.sort_values(by='patient_nbr')
+diabetes_dataset = diabetes_dataset.sort_values(by=['patient_nbr', 'encounter_id'])
 
 
+# Function to calculate differences between consecutive rows
+def calculate_differences(df, idx1, idx2):
+    differences = {}
+    for column in df.columns:
+        if column != 'readmitted':
+            if pd.api.types.is_numeric_dtype(df[column]):
+                differences[column] = df.at[idx1, column] - df.at[idx2, column]
+            else:
+                differences[column] = 1 if df.at[idx1, column] != df.at[idx2, column] else 0
+    return differences
+
+# Function to identify shifts and calculate differences within a group
+def process_group(group):
+    shifts = ((group['readmitted'] == '<30') & ((group['readmitted'].shift(1) == 'NO') | (group['readmitted'].shift(1) == '>30')))
+    shift_indices = group.index[shifts]
+    
+
+    differences_list = []
+    for idx in shift_indices:
+        if idx > group.index.min():
+            prev_idx = group.index[group.index.get_loc(idx) - 1]  # Safely get the previous index
+            #print(idx, prev_idx)
+            differences = calculate_differences(group, prev_idx, idx)
+            differences_list.append(differences)
+    
+    return differences_list
+
+# Apply the function to each group and collect all differences
+all_differences = []
+for patient_id, group in diabetes_dataset.groupby('patient_nbr'):
+    all_differences.extend(process_group(group))
+
+# Convert list of differences to a DataFrame
+differences_df = pd.DataFrame(all_differences)
+# Calculate the mean differences (normalize by the number of shifts)
+normalized_differences = differences_df.abs().mean()
+
+# Get feature names with normalized difference value below 0.01
+features_below_threshold = normalized_differences[normalized_differences < 0.01].index.tolist()
+
+
+diabetes_dataset_important_features = diabetes_dataset.drop(features_below_threshold, axis=1)
+diabetes_dataset_important_features.drop(['encounter_id'], axis=1, inplace=True)
 '''def load_data():
     def split_feature_label(data_set):
-        features = data_set[:-2]
-        labels = data_set['']
+        features = data_set.iloc[:, :-1]
+        labels = data_set['readmitted']
         return features, labels
 
     train_set = diabetes_dataset[diabetes_dataset['split'] == 'training']
@@ -68,4 +111,4 @@ diabetes_dataset = diabetes_dataset.sort_values(by='patient_nbr')
 (train_features, train_labels, dev_features, \
         dev_labels, test_features, test_labels) = load_data()'''
 
-print(diabetes_dataset.columns)
+print(diabetes_dataset_important_features)
